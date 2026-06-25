@@ -1,29 +1,31 @@
 # STM32 Dual-MCU Audio & Ultrasonic Acquisition System
 
 ## Overview
-This repository contains a complete, full-stack data acquisition system. It utilizes a **Dual-STM32 architecture** to achieve high-speed (44.4 kHz), 12-bit audio sampling without overloading a single processor. 
+This repository contains a full-stack data acquisition system utilizing a **Dual-STM32 architecture** designed for high-speed (44.4 kHz), 12-bit audio sampling. 
 
 The system features two operating modes: a timed **Manual Mode** and a smart **Auto Mode** that uses an HC-SR04 ultrasonic sensor to automatically start and stop recording based on hand proximity. The backend includes a Python pipeline for data visualization (PNG) and processing, along with a custom C-based WAV file compiler.
 
+*Note: There are two versions of the Slave MCU firmware, each highlighting different engineering trade-offs between processing speed and feature complexity (see Repository Structure).*
+
 ## System Architecture
-To ensure zero data loss at 44.4 kHz, the workload is split between two STM32 microcontrollers:
-1. **Master Node (Data Acquisition):** - Uses `TIM6` to trigger `ADC1` at precisely 44.4 kHz.
+To handle high-speed continuous data, the workload is split between two STM32 microcontrollers:
+1. **Master Node (Data Acquisition):** - Uses `TIM6` to trigger `ADC1` at 44.4 kHz.
    - Streams raw ADC data directly into memory via DMA.
    - Pushes 512-sample blocks to the Slave node via High-Speed SPI (DMA).
 2. **Slave Node (Processing & Control):**
-   - Receives SPI data via DMA (Ping-Pong buffer via Half/Full callbacks).
-   - **On-the-fly DSP:** Performs real-time Outlier Rejection (Median-of-3) and a Moving Average Filter (Window=3) to clean the audio signal.
-   - Reads the HC-SR04 Ultrasonic sensor using `TIM6` and EXTI interrupts for non-blocking distance measurement.
-   - Transmits the cleaned payload and control tokens (Start/Stop/Sample Rate) to the PC via UART at **921600 baud**.
+   - Receives SPI data via DMA using Ping-Pong buffering (Half/Full callbacks).
+   - **On-the-fly DSP (V2 Only):** Performs real-time Outlier Rejection (spike removal via neighbor averaging) and a Moving Average Filter (Window=3) to clean the audio signal.
+   - Reads the HC-SR04 Ultrasonic sensor using `TIM6` and EXTI interrupts.
+   - Transmits the payload and control tokens (Start/Stop/Sample Rate) to the PC via UART at **921600 baud**.
 3. **PC Host (Python & C):**
    - Python script reads the 921600 baud serial stream.
-   - Re-aligns 12-bit data, removes DC offsets, and applies a Butterworth High-Pass Filter (SciPy).
-   - Automatically compiles and executes a custom `convert_to_wav.c` tool to perfectly encode the binary data into a `.wav` file.
+   - Re-aligns 12-bit data, removes spikes, centers the offset, and applies a Butterworth High-Pass Filter (SciPy).
+   - Automatically compiles and executes a custom `convert_to_wav.c` tool to precisely encode the binary data into a `.wav` file.
 
-## Repository Structure
-* `/Master_STM32/`: Code for the ADC sampling and SPI transmission.
-* `/Slave_STM32_V1/`: Slave code optimized for Manual Mode testing.
-* `/Slave_STM32_V2/`: Advanced Slave code with Ultrasonic auto-triggering, dynamic thresholding, and on-board DSP filtering.
+## Repository Structure & Versions
+* `/Master_STM32/`: Core ADC sampling and SPI DMA transmission code.
+* `/Slave_STM32_V1/`: **High-Speed Manual Mode Version.** This version **successfully meets the full 44.4 kHz sampling rate** with zero data loss. However, the ultrasonic sensor implementation does not work reliably in this version. *(All demo videos showcase this V1 implementation).*
+* `/Slave_STM32_V2/`: **Advanced Auto Mode Version.** This version introduces robust ultrasonic auto-triggering, dynamic thresholding, and on-board DSP filtering. **Note: Due to the heavy CPU processing overhead of the DSP loop, this version cannot currently meet the 44.4 kHz sampling rate without dropping packets.**
 * `/PC_Backend/`: Contains the Python listener script and `convert_to_wav.c`.
 
 ## Hardware Pinout
@@ -39,7 +41,7 @@ To ensure zero data loss at 44.4 kHz, the workload is split between two STM32 mi
 * `PB3 (Output)` - Status LED (Recording Indicator)
 
 ## How to Run
-1. Flash the Master STM32 and Slave STM32 (V2 recommended).
+1. Flash the Master STM32 and your chosen Slave STM32 version.
 2. Wire the SPI lines between the two boards, and connect the HC-SR04.
 3. Connect the Slave STM32 to the PC via USB-TTL.
 4. Run the Python script. The script will auto-compile the WAV converter.
@@ -49,4 +51,4 @@ To ensure zero data loss at 44.4 kHz, the workload is split between two STM32 mi
 6. Check the `/recordings` folder for the generated `.csv`, `.png` waveform graph, and `.wav` audio file!
 
 ## Demo
-*At above*
+*(Note: The following demo is running Slave_STM32_V1)*

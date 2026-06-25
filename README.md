@@ -14,7 +14,7 @@ To handle high-speed continuous data, the workload is split between two STM32 mi
    - Pushes 512-sample blocks to the Slave node via High-Speed SPI (DMA).
 2. **Slave Node (Processing & Control):**
    - Receives SPI data via DMA using Ping-Pong buffering (Half/Full callbacks).
-   - **On-the-fly DSP (V2 Only):** Performs real-time Outlier Rejection (spike removal via neighbor averaging) and a Moving Average Filter (Window=3) to clean the audio signal.
+   - **On-the-fly DSP (V2 Only):** Performs real-time Outlier Rejection (spike removal via neighbor averaging) and a Moving Average Filter to clean the audio signal.
    - Reads the HC-SR04 Ultrasonic sensor using `TIM6` and EXTI interrupts.
    - Transmits the payload and control tokens (Start/Stop/Sample Rate) to the PC via UART at **921600 baud**.
 3. **PC Host (Python & C):**

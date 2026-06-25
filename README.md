@@ -49,4 +49,4 @@ To ensure zero data loss at 44.4 kHz, the workload is split between two STM32 mi
 6. Check the `/recordings` folder for the generated `.csv`, `.png` waveform graph, and `.wav` audio file!
 
 ## Demo
-*At the zip file*
+*At above*
